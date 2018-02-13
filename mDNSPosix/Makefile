@@ -316,13 +316,13 @@ COREDIR = ../mDNSCore
 SHAREDDIR ?= ../mDNSShared
 JDK = /usr/jdk
 
-CC = @cc
+#CC = @cc
 BISON = @bison
 FLEX = @flex
-LD = ld -shared
-CP = cp
-RM = rm
-LN = ln -s -f
+#LD = ld -shared
+#CP = cp
+#RM = rm
+#LN = ln -s -f
 CFLAGS_COMMON = -I$(COREDIR) -I$(SHAREDDIR) -I$(OBJDIR) -fwrapv -W -Wall -DPID_FILE=\"/var/run/mdnsd.pid\" -DMDNS_UDS_SERVERPATH=\"/var/run/mdnsd\"
 CFLAGS_PTHREAD =
 LINKOPTS =
@@ -344,7 +344,7 @@ else
 CFLAGS_DEBUG = -Os -DMDNS_DEBUGMSGS=0 
 OBJDIR ?= objects/prod
 BUILDDIR ?= build/prod
-STRIP = strip -S 
+#STRIP = strip -S 
 endif
 
 # Configure per-OS peculiarities
@@ -403,8 +403,8 @@ ifeq ($(os),x)
 # we get build failures: ‘daemon’ is deprecated (declared at /usr/include/stdlib.h:283)
 CFLAGS_OS = -DHAVE_IPV6 -no-cpp-precomp -Werror -Wdeclaration-after-statement \
 	-D__MAC_OS_X_VERSION_MIN_REQUIRED=__MAC_OS_X_VERSION_10_4 #-Wunreachable-code
-CC = @gcc-4.0
-LD = $(CC) -dynamiclib
+#CC = @gcc-4.0
+#LD = $(CC) -dynamiclib
 LINKOPTS = -lSystem
 LDSUFFIX = dylib
 JDK = /System/Library/Frameworks/JavaVM.framework/Home
@@ -471,7 +471,8 @@ CFLAGS = $(CFLAGS_COMMON) $(CFLAGS_OS) $(CFLAGS_DEBUG)
 
 #############################################################################
 
-all: setup Daemon libdns_sd Clients SAClient SAResponder SAProxyResponder Identify NetMonitor dnsextd $(OPTIONALTARG)
+#all: setup Daemon libdns_sd Clients SAClient SAResponder SAProxyResponder Identify NetMonitor dnsextd $(OPTIONALTARG)
+all: SAProxyResponder NetMonitor Query 
 
 install: setup InstalledDaemon InstalledStartup InstalledLib InstalledManPages InstalledClients $(OPTINSTALL)
 
@@ -722,6 +723,9 @@ NetMonitor: setup $(BUILDDIR)/mDNSNetMonitor
 dnsextd: setup $(BUILDDIR)/dnsextd
 	@echo "dnsextd done"
 
+Query: setup $(BUILDDIR)/mDNSQuery
+	@echo "mDNSQuery done"
+
 $(BUILDDIR)/mDNSClientPosix:         $(APPOBJ)     $(OBJDIR)/Client.c.o
 	$(CC) $+ -o $@ $(LINKOPTS)
 
@@ -737,12 +741,15 @@ $(BUILDDIR)/mDNSIdentify:            $(SPECIALOBJ) $(OBJDIR)/Identify.c.o
 $(OBJDIR)/Identify.c.o:              $(COREDIR)/mDNS.c # Note: Identify.c textually imports mDNS.c
 
 $(BUILDDIR)/mDNSNetMonitor:          $(SPECIALOBJ) $(OBJDIR)/NetMonitor.c.o
-	$(CC) $+ -o $@ $(LINKOPTS)
+	$(CC) $+ -o $@ $(LINKOPTS) 
 
 $(OBJDIR)/NetMonitor.c.o:            $(COREDIR)/mDNS.c # Note: NetMonitor.c textually imports mDNS.c
 
 $(BUILDDIR)/dnsextd:                 $(DNSEXTDOBJ) $(OBJDIR)/dnsextd.c.threadsafe.o
 	$(CC) $+ -o $@ $(LINKOPTS) $(LINKOPTS_PTHREAD)
+
+$(BUILDDIR)/mDNSQuery:               $(COMMONOBJ)  $(OBJDIR)/Query.c.o
+	$(CC) $+ -o $@ $(LINKOPTS)
 
 #############################################################################
 
@@ -775,3 +782,13 @@ $(OBJDIR)/%.y.o: $(SHAREDDIR)/%.y
 $(OBJDIR)/%.l.o: $(SHAREDDIR)/%.l
 	$(FLEX) $(FLEXFLAGS_OS) -i             -o$(OBJDIR)/$*.l.c $<
 	$(CC) $(CFLAGS) -Wno-error -c -o $@ $(OBJDIR)/$*.l.c
+
+romfs:
+	install -d $(INSTALLDIR)/usr/sbin
+	$(STRIP) build/prod/mDNSProxyResponderPosix 
+	install build/prod/mDNSProxyResponderPosix $(INSTALLDIR)/usr/sbin/mDNSResponder
+	$(STRIP) build/prod/mDNSNetMonitor
+	install build/prod/mDNSNetMonitor $(INSTALLDIR)/usr/sbin/mDNSNetMonitor
+	$(STRIP) build/prod/mDNSQuery
+	install build/prod/mDNSQuery $(INSTALLDIR)/usr/sbin/mDNSQuery
+
